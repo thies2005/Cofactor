@@ -9,37 +9,48 @@ services:
     ports:
       - "3000:3000"
     environment:
-      # SECURE: Using variable substitution for password in connection string
-      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
-      - NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
-      - NEXTAUTH_URL=http://localhost:3000
-      - NEXT_PUBLIC_API_URL=https://club.cofactor.world
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-cofactor}:${POSTGRES_PASSWORD:-securepassword}@db:5432/${POSTGRES_DB:-cofactor_db}
+      - NEXTAUTH_SECRET=${NEXTAUTH_SECRET:-changeme_in_production}
+      - NEXTAUTH_URL=${NEXTAUTH_URL:-http://localhost:3000}
+      - ADMIN_EMAIL=${ADMIN_EMAIL:-admin@cofactor.world}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin123}
+      - STAFF_SECRET_CODE=${STAFF_SECRET_CODE:-STAFF_2026}
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     networks:
       - cofactor-net
+    healthcheck:
+      test: [ "CMD", "wget", "--spider", "-q", "http://localhost:3000/api/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   db:
     image: postgres:15-alpine
     restart: always
     environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      # SECURE: Using variable substitution for password
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER:-cofactor}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-securepassword}
+      POSTGRES_DB: ${POSTGRES_DB:-cofactor_db}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
       - cofactor-net
-
-  tunnel:
-    image: cloudflare/cloudflared:latest
-    restart: always
-    command: tunnel run
-    environment:
-      - TUNNEL_TOKEN=${CLOUDFLARE_TOKEN}
-    networks:
-      - cofactor-net
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-cofactor}" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+  # Optional: Cloudflare Tunnel for production
+  # tunnel:
+  #   image: cloudflare/cloudflared:latest
+  #   restart: always
+  #   command: tunnel run
+  #   environment:
+  #     - TUNNEL_TOKEN=${CLOUDFLARE_TOKEN}
+  #   networks:
+  #     - cofactor-net
 
 networks:
   cofactor-net:
