@@ -1,0 +1,66 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  name          String?
+  role          Role     @default(STUDENT)
+  referralCode  String   @unique
+  socialStats   Json?
+  powerScore    Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  revisions     WikiRevision[]
+  referralsMade Referral[] @relation("Referrer")
+  referredBy    Referral?  @relation("Referee")
+}
+
+enum Role {
+  STUDENT
+  ADMIN
+}
+
+model UniPage {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  revisions WikiRevision[]
+}
+
+model WikiRevision {
+  id        String         @id @default(cuid())
+  uniPageId String
+  uniPage   UniPage        @relation(fields: [uniPageId], references: [id])
+  authorId  String
+  author    User           @relation(fields: [authorId], references: [id])
+  content   String
+  status    RevisionStatus @default(PENDING)
+  createdAt DateTime       @default(now())
+}
+
+enum RevisionStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model Referral {
+  id         String   @id @default(cuid())
+  referrerId String
+  referrer   User     @relation("Referrer", fields: [referrerId], references: [id])
+  refereeId  String   @unique
+  referee    User     @relation("Referee", fields: [refereeId], references: [id])
+  createdAt  DateTime @default(now())
+}
