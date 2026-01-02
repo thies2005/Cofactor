@@ -1,36 +1,208 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Cofactor Club 🚀
 
-## Getting Started
+A student ambassador network platform for managing referrals, tracking viral growth, and building a moderated University Wiki with a gamified Power Score system.
 
-First, run the development server:
+## Features
 
+### 🎯 Power Score System
+- **Referrals**: +50 points per successful invite
+- **Wiki Contributions**: +20 points for approved edits
+- **Social Reach**: Points based on aggregate followers (Instagram, TikTok, LinkedIn)
+
+### 👥 User Roles
+| Role | Capabilities |
+|------|-------------|
+| **Student** | Create referrals, propose wiki edits, sync social accounts |
+| **Staff** | Auto-approved wiki edits, same as student |
+| **Pending Staff** | Awaiting admin approval for staff privileges |
+| **Admin** | Full access: approve/reject revisions, manage users, delete pages |
+
+### 📚 University Wiki
+- Community-contributed university pages
+- Revision-based editing with moderation workflow
+- **Published State**: Pages only visible after first approval
+- **Diff Viewer**: Visual comparison of edit proposals
+- **XSS Protection**: All content sanitized with DOMPurify
+
+### 📊 Admin Dashboard
+- **KPI Cards**: Total users, referrals, social reach, pending actions
+- **Leaderboard**: Top 10 performers by Power Score
+- **Recent Signups**: Latest members with role badges
+- **Activity Hotspots**: Most edited wiki pages
+- **Staff Applications**: Approve/reject pending staff
+
+---
+
+## Quick Start
+
+### Prerequisites
+- Node.js 18+
+- PostgreSQL database
+- Docker (optional, for database)
+
+### 1. Clone & Install
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+git clone https://github.com/your-repo/cofactor-club.git
+cd cofactor-club
+npm install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 2. Environment Setup
+Create a `.env` file in the root directory:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```env
+# Database
+DATABASE_URL=postgresql://user:password@localhost:5432/cofactor_db
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+# NextAuth
+NEXTAUTH_SECRET=your-super-secret-random-string
+NEXTAUTH_URL=http://localhost:3000
 
-## Learn More
+# Admin Seeding
+ADMIN_EMAIL=admin@cofactor.world
+ADMIN_PASSWORD=your-secure-admin-password
 
-To learn more about Next.js, take a look at the following resources:
+# Staff Sign-up (optional secret code)
+STAFF_SECRET_CODE=STAFF_2026
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+# SMTP Email (optional)
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=your-email@gmail.com
+SMTP_PASS=your-app-password
+SMTP_FROM="Cofactor Club" <no-reply@cofactor.world>
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### 3. Database Setup
+```bash
+# Start PostgreSQL (if using Docker)
+docker-compose up -d db
 
-## Deploy on Vercel
+# Apply schema
+npm run prisma:push
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+# Generate Prisma client
+npm run prisma:generate
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### 4. Run Development Server
+```bash
+npm run dev
+```
+Visit `http://localhost:3000`
+
+---
+
+## Project Structure
+
+```
+cofactor-club/
+├── app/
+│   ├── admin/
+│   │   ├── actions.ts        # Admin server actions
+│   │   └── dashboard/        # Admin dashboard page
+│   ├── auth/
+│   │   ├── actions.ts        # Sign-up action
+│   │   ├── signin/           # Login page
+│   │   └── signup/           # Registration page
+│   ├── profile/
+│   │   ├── page.tsx          # User profile
+│   │   └── connect/          # Social account linking
+│   ├── wiki/
+│   │   ├── actions.ts        # Wiki edit action
+│   │   └── [slug]/           # Dynamic wiki pages
+│   └── leaderboard/          # Power Score rankings
+├── components/
+│   ├── ui/                   # Shadcn UI components
+│   ├── DiffViewer.tsx        # Wiki diff comparison
+│   └── SignOutButton.tsx     # Logout button
+├── lib/
+│   ├── prisma.ts             # Prisma client
+│   ├── auth.ts               # Auth utilities
+│   ├── auth-config.ts        # NextAuth configuration
+│   ├── email.ts              # Nodemailer SMTP
+│   └── types.ts              # TypeScript types
+├── prisma/
+│   └── schema.prisma         # Database schema
+└── instrumentation.ts        # Admin seeding on startup
+```
+
+---
+
+## API & Server Actions
+
+### Authentication
+- `signUp(formData)` - Register new user with referral code
+- Uses NextAuth.js Credentials Provider
+- Passwords hashed with bcryptjs
+
+### Wiki
+- `proposeEdit(formData)` - Submit wiki edit (auto-approved for Admin/Staff)
+- `deletePage(slug)` - Admin only: remove page and revisions
+
+### Admin
+- `approveRevision(id)` - Approve wiki edit, publish page
+- `rejectRevision(id)` - Reject wiki edit
+- `approveStaff(userId)` - Promote pending staff to staff
+- `rejectStaff(userId)` - Demote pending staff to student
+
+### Social
+- `saveSocialApiKeys(formData)` - Connect social accounts
+- `syncSocials(formData)` - Refresh follower counts
+
+---
+
+## Security
+
+| Feature | Implementation |
+|---------|---------------|
+| Password Hashing | bcryptjs (10 rounds) |
+| Session Management | NextAuth.js JWT |
+| Admin Protection | Middleware + Server Action guards |
+| XSS Prevention | isomorphic-dompurify |
+| CSRF Protection | Server Actions with form tokens |
+| Secrets | Environment variables only |
+
+---
+
+## Deployment
+
+### Production Build
+```bash
+npm run build
+npm start
+```
+
+### Docker
+```bash
+docker-compose up --build
+```
+
+### Environment Variables (Production)
+Ensure all `.env` variables are set in your hosting provider:
+- `DATABASE_URL` - Production PostgreSQL URL
+- `NEXTAUTH_SECRET` - Generate with `openssl rand -base64 32`
+- `NEXTAUTH_URL` - Your production domain
+
+---
+
+## Tech Stack
+- **Framework**: Next.js 16 (App Router)
+- **Database**: PostgreSQL + Prisma ORM
+- **Auth**: NextAuth.js
+- **Styling**: Tailwind CSS + Shadcn UI
+- **Email**: Nodemailer
+
+---
+
+## License
+MIT
+
+## Contributing
+1. Fork the repository
+2. Create a feature branch
+3. Submit a pull request
+
+---
+
+Built with ❤️ by the Cofactor Team

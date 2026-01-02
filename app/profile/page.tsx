@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { syncSocials } from '../actions/social'
 import { SignOutButton } from '@/components/SignOutButton'
+import Link from 'next/link'
 
 export const dynamic = 'force-dynamic'
 
@@ -73,9 +74,14 @@ export default async function ProfilePage() {
                             </div>
                         </div>
 
-                        <form action={syncSocials}>
-                            <Button className="w-full">Sync Latest Stats</Button>
-                        </form>
+                        <div className="flex gap-2">
+                            <form action={syncSocials}>
+                                <Button variant="outline" className="flex-1">Sync Stats</Button>
+                            </form>
+                            <Link href="/profile/connect">
+                                <Button className="flex-1">Connect Accounts</Button>
+                            </Link>
+                        </div>
                     </CardContent>
                 </Card>
             </div>

@@ -20,6 +20,9 @@ export function Navbar() {
                         {/* Search could go here */}
                     </div>
                     <nav className="flex items-center space-x-2">
+                        <Link href="/members">
+                            <Button variant="ghost" size="sm">Members</Button>
+                        </Link>
                         <Link href="/admin/dashboard">
                             <Button variant="ghost" size="sm">Admin</Button>
                         </Link>

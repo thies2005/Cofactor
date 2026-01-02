@@ -76,6 +76,11 @@ export async function signUp(prevState: any, formData: FormData) {
             })
         }
 
+        // Send Welcome Email (Non-blocking)
+        const { sendWelcomeEmail } = await import('@/lib/email')
+        // Fire and forget, don't await completion to speed up UX
+        sendWelcomeEmail(email, name).catch(err => console.error("Failed to send welcome email", err))
+
     } catch (e) {
         console.error(e)
         return { error: 'Registration failed' }

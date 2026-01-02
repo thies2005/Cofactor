@@ -2,6 +2,7 @@
 
 import { prisma } from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
+import { redirect } from 'next/navigation'
 import { requireAdmin } from '@/lib/auth'
 import { parseSocialStats, calculateSocialReach, POWER_SCORE } from '@/lib/types'
 
@@ -29,10 +30,13 @@ export async function approveRevision(revisionId: string) {
             data: { status: 'APPROVED' }
         }),
 
-        // Update UniPage Content with new text
+        // Update UniPage Content with new text AND set published = true
         prisma.uniPage.update({
             where: { id: revision.uniPageId },
-            data: { content: revision.content }
+            data: {
+                content: revision.content,
+                published: true
+            }
         }),
 
         // Increment Power Score for Author (+20)
@@ -43,6 +47,16 @@ export async function approveRevision(revisionId: string) {
             }
         })
     ])
+
+    // Fetch slug for revalidation (optimization: could fetch in initial query)
+    const uniPage = await prisma.uniPage.findUnique({
+        where: { id: revision.uniPageId },
+        select: { slug: true }
+    })
+
+    if (uniPage) {
+        revalidatePath(`/wiki/${uniPage.slug}`)
+    }
 
     revalidatePath('/admin/dashboard')
     revalidatePath(`/wiki`)
@@ -138,4 +152,28 @@ export async function recalculatePowerScore(userId: string) {
         where: { id: userId },
         data: { powerScore }
     })
+}
+
+/**
+ * Delete a Wiki Page (UniPage) - ADMIN ONLY
+ * Removes the page and all its revisions.
+ */
+export async function deletePage(slug: string) {
+    await requireAdmin()
+
+    // Find page ID first
+    const page = await prisma.uniPage.findUnique({ where: { slug } })
+    if (!page) return
+
+    await prisma.$transaction([
+        prisma.wikiRevision.deleteMany({
+            where: { uniPageId: page.id }
+        }),
+        prisma.uniPage.delete({
+            where: { id: page.id }
+        })
+    ])
+
+    revalidatePath('/wiki')
+    redirect('/wiki')
 }

@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge'
 import Link from 'next/link'
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth-config"
+import { WikiRevision } from '@prisma/client'
 
 export default async function WikiPage({ params }: { params: Promise<{ slug: string }> }) {
     const { slug } = await params
@@ -37,13 +38,12 @@ export default async function WikiPage({ params }: { params: Promise<{ slug: str
         )
     }
 
-    // Check if page has no approved content (empty or draft)
-    const hasContent = uniPage.content && uniPage.content.trim().length > 0
-    const pendingRevisions = uniPage.revisions.filter(r => r.status === 'PENDING')
+    const isPublished = uniPage.published
+    const pendingRevisions = uniPage.revisions.filter((r: WikiRevision) => r.status === 'PENDING')
     const hasPendingRevisions = pendingRevisions.length > 0
 
-    // Explicit Empty State / Draft State UI
-    if (!hasContent) {
+    // Draft/Unpublished State
+    if (!isPublished) {
         return (
             <div className="container mx-auto py-10">
                 <div className="flex justify-between items-center mb-6">
@@ -53,9 +53,20 @@ export default async function WikiPage({ params }: { params: Promise<{ slug: str
                             {hasPendingRevisions ? 'Pending Review' : 'Draft'}
                         </Badge>
                     </div>
-                    <Link href={`/wiki/${slug}/edit`}>
-                        <Button variant="outline">Edit Page</Button>
-                    </Link>
+                    <div className="flex items-center gap-2">
+                        {session?.user?.role === 'ADMIN' && (
+                            <form action={async () => {
+                                'use server'
+                                const { deletePage } = await import('@/app/admin/actions')
+                                await deletePage(slug)
+                            }}>
+                                <Button variant="destructive" size="sm">Delete Page</Button>
+                            </form>
+                        )}
+                        <Link href={`/wiki/${slug}/edit`}>
+                            <Button variant="outline">Edit Page</Button>
+                        </Link>
+                    </div>
                 </div>
 
                 <Card className="border-dashed border-2 border-muted bg-muted/10">
@@ -68,9 +79,8 @@ export default async function WikiPage({ params }: { params: Promise<{ slug: str
                         </CardTitle>
                         <CardDescription className="text-lg max-w-md mx-auto">
                             {hasPendingRevisions
-                                ? `There are ${pendingRevisions.length} revision(s) currently awaiting moderation. Check back soon!`
-                                : 'This page is essentially blank. Be the first to contribute knowledge about this university.'
-                            }
+                                ? `There are ${pendingRevisions.length} revision(s) currently awaiting moderation.`
+                                : 'This page is blank. Be the first to contribute!'}
                         </CardDescription>
                     </CardHeader>
                     <CardContent className="text-center pb-8">
@@ -97,23 +107,34 @@ export default async function WikiPage({ params }: { params: Promise<{ slug: str
         )
     }
 
-    // Normal page with approved content
+    // Published page with content
     return (
         <div className="container mx-auto py-10">
             <div className="flex justify-between items-center mb-6">
                 <div className="flex items-center gap-4">
                     <h1 className="text-4xl font-bold">{uniPage.name}</h1>
                     {hasPendingRevisions && (
-                        <Link href={`/admin/dashboard`}>
+                        <Link href="/admin/dashboard">
                             <Badge variant="outline" className="text-xs hover:bg-muted cursor-pointer">
                                 {pendingRevisions.length} pending update{pendingRevisions.length > 1 ? 's' : ''}
                             </Badge>
                         </Link>
                     )}
                 </div>
-                <Link href={`/wiki/${slug}/edit`}>
-                    <Button variant="outline">Edit Page</Button>
-                </Link>
+                <div className="flex items-center gap-2">
+                    {session?.user?.role === 'ADMIN' && (
+                        <form action={async () => {
+                            'use server'
+                            const { deletePage } = await import('@/app/admin/actions')
+                            await deletePage(slug)
+                        }}>
+                            <Button variant="destructive" size="sm">Delete Page</Button>
+                        </form>
+                    )}
+                    <Link href={`/wiki/${slug}/edit`}>
+                        <Button variant="outline">Edit Page</Button>
+                    </Link>
+                </div>
             </div>
 
             <Card>
