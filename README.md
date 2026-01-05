@@ -2,6 +2,15 @@
 
 A student ambassador network platform for managing referrals, tracking viral growth, and building a moderated University Wiki with a gamified Power Score system.
 
+## Branches
+
+| Branch | Purpose |
+|--------|---------|
+| `main` | **Production** - Docker deployment ready, clean codebase |
+| `secondary` | **Backup** - Previous development state |
+
+---
+
 ## Features
 
 ### 🎯 Power Score System
@@ -33,36 +42,39 @@ A student ambassador network platform for managing referrals, tracking viral gro
 
 ---
 
-## Quick Start
+## Deployment (Docker)
+
+This branch is optimized for **Docker deployment on ARM64 Ubuntu** (e.g., Oracle Cloud).
 
 ### Prerequisites
-- Node.js 18+
-- PostgreSQL database
-- Docker (optional, for database)
+- Docker & Docker Compose
+- ARM64 or x86_64 Linux server
 
-### 1. Clone & Install
+### 1. Clone Repository
 ```bash
 git clone https://github.com/your-repo/cofactor-club.git
 cd cofactor-club
-npm install
 ```
 
-### 2. Environment Setup
-Create a `.env` file in the root directory:
+### 2. Configure Environment
+Create a `.env` file:
 
 ```env
-# Database
-DATABASE_URL=postgresql://user:password@localhost:5432/cofactor_db
+# Database (used by docker-compose)
+POSTGRES_USER=cofactor
+POSTGRES_PASSWORD=your-secure-db-password
+POSTGRES_DB=cofactor_db
 
-# NextAuth
+# App Configuration
+DATABASE_URL=postgresql://cofactor:your-secure-db-password@db:5432/cofactor_db
 NEXTAUTH_SECRET=your-super-secret-random-string
-NEXTAUTH_URL=http://localhost:3000
+NEXTAUTH_URL=https://your-domain.com
 
 # Admin Seeding
 ADMIN_EMAIL=admin@cofactor.world
 ADMIN_PASSWORD=your-secure-admin-password
 
-# Staff Sign-up (optional secret code)
+# Staff Sign-up (optional)
 STAFF_SECRET_CODE=STAFF_2026
 
 # SMTP Email (optional)
@@ -73,22 +85,56 @@ SMTP_PASS=your-app-password
 SMTP_FROM="Cofactor Club" <no-reply@cofactor.world>
 ```
 
-### 3. Database Setup
+### 3. Deploy with Docker Compose
 ```bash
-# Start PostgreSQL (if using Docker)
+# Build and start all services
+docker-compose up -d --build
+
+# View logs
+docker-compose logs -f web
+```
+
+### 4. Database Management
+```bash
+# Push schema changes
+docker-compose exec web npx prisma db push
+
+# Open Prisma Studio
+docker-compose exec web npx prisma studio
+```
+
+### 5. Backup & Restore
+```bash
+# Backup database
+./scripts/backup.sh
+
+# Restore from backup
+./scripts/restore.sh
+```
+
+---
+
+## Local Development
+
+For local development, use the `secondary` branch or:
+
+```bash
+# Start only the database
 docker-compose up -d db
 
-# Apply schema
-npm run prisma:push
+# Install dependencies
+npm install
 
 # Generate Prisma client
 npm run prisma:generate
-```
 
-### 4. Run Development Server
-```bash
+# Push schema
+npm run prisma:push
+
+# Start dev server
 npm run dev
 ```
+
 Visit `http://localhost:3000`
 
 ---
@@ -97,58 +143,42 @@ Visit `http://localhost:3000`
 
 ```
 cofactor-club/
-├── app/
-│   ├── admin/
-│   │   ├── actions.ts        # Admin server actions
-│   │   └── dashboard/        # Admin dashboard page
-│   ├── auth/
-│   │   ├── actions.ts        # Sign-up action
-│   │   ├── signin/           # Login page
-│   │   └── signup/           # Registration page
-│   ├── profile/
-│   │   ├── page.tsx          # User profile
-│   │   └── connect/          # Social account linking
-│   ├── wiki/
-│   │   ├── actions.ts        # Wiki edit action
-│   │   └── [slug]/           # Dynamic wiki pages
-│   └── leaderboard/          # Power Score rankings
-├── components/
-│   ├── ui/                   # Shadcn UI components
-│   ├── DiffViewer.tsx        # Wiki diff comparison
-│   └── SignOutButton.tsx     # Logout button
-├── lib/
-│   ├── prisma.ts             # Prisma client
-│   ├── auth.ts               # Auth utilities
-│   ├── auth-config.ts        # NextAuth configuration
-│   ├── email.ts              # Nodemailer SMTP
-│   └── types.ts              # TypeScript types
+├── app/                  # Next.js App Router
+│   ├── admin/            # Admin dashboard & actions
+│   ├── auth/             # Sign-in/Sign-up pages
+│   ├── profile/          # User profile & social linking
+│   ├── wiki/             # University wiki pages
+│   ├── leaderboard/      # Power Score rankings
+│   └── members/          # Members directory (admin only)
+├── components/           # React components
+│   ├── ui/               # Shadcn UI components
+│   └── DiffViewer.tsx    # Wiki diff comparison
+├── lib/                  # Utilities
+│   ├── prisma.ts         # Prisma client
+│   ├── auth.ts           # Auth utilities
+│   └── email.ts          # Nodemailer SMTP
 ├── prisma/
-│   └── schema.prisma         # Database schema
-└── instrumentation.ts        # Admin seeding on startup
+│   └── schema.prisma     # Database schema (ARM64 ready)
+├── scripts/
+│   ├── backup.sh         # Database backup script
+│   └── restore.sh        # Database restore script
+├── Dockerfile            # Multi-stage build (ARM64 optimized)
+├── docker-compose.yml    # Full stack deployment
+└── instrumentation.ts    # Admin seeding on startup
 ```
 
 ---
 
-## API & Server Actions
+## Tech Stack
 
-### Authentication
-- `signUp(formData)` - Register new user with referral code
-- Uses NextAuth.js Credentials Provider
-- Passwords hashed with bcryptjs
-
-### Wiki
-- `proposeEdit(formData)` - Submit wiki edit (auto-approved for Admin/Staff)
-- `deletePage(slug)` - Admin only: remove page and revisions
-
-### Admin
-- `approveRevision(id)` - Approve wiki edit, publish page
-- `rejectRevision(id)` - Reject wiki edit
-- `approveStaff(userId)` - Promote pending staff to staff
-- `rejectStaff(userId)` - Demote pending staff to student
-
-### Social
-- `saveSocialApiKeys(formData)` - Connect social accounts
-- `syncSocials(formData)` - Refresh follower counts
+| Component | Technology |
+|-----------|------------|
+| Framework | Next.js 16 (App Router, Standalone Output) |
+| Database | PostgreSQL 15 + Prisma ORM |
+| Auth | NextAuth.js (Credentials) |
+| Styling | Tailwind CSS + Shadcn UI |
+| Email | Nodemailer |
+| Container | Docker (node:20-alpine, ARM64 compatible) |
 
 ---
 
@@ -165,43 +195,8 @@ cofactor-club/
 
 ---
 
-## Deployment
-
-### Production Build
-```bash
-npm run build
-npm start
-```
-
-### Docker
-```bash
-docker-compose up --build
-```
-
-### Environment Variables (Production)
-Ensure all `.env` variables are set in your hosting provider:
-- `DATABASE_URL` - Production PostgreSQL URL
-- `NEXTAUTH_SECRET` - Generate with `openssl rand -base64 32`
-- `NEXTAUTH_URL` - Your production domain
-
----
-
-## Tech Stack
-- **Framework**: Next.js 16 (App Router)
-- **Database**: PostgreSQL + Prisma ORM
-- **Auth**: NextAuth.js
-- **Styling**: Tailwind CSS + Shadcn UI
-- **Email**: Nodemailer
-
----
-
 ## License
 MIT
-
-## Contributing
-1. Fork the repository
-2. Create a feature branch
-3. Submit a pull request
 
 ---
 
